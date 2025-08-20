@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>IRG Grand AR Menu</title>
+  <link rel="stylesheet" href="styles.css"/>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+  <header class="header">
+    <div class="brand">
+      <div class="logo"></div>
+      <div class="title">IRG Kitchen • Grand AR Menu</div>
+    </div>
+    <a href="qr.html" class="badge">QR</a>
+  </header>
+
+  <main class="container">
+    <section class="hero">
+      <h1>Place our dishes on your table in AR</h1>
+      <p>Scan, explore, and visualize lifelike portions before you order.</p>
+      <div class="toolbar">
+        <input id="q" class="input" placeholder="Search dishes… (e.g., biryani)" />
+        <select id="cat" class="select"><option value="">All Categories</option></select>
+        <select id="sort" class="select">
+          <option value="name">Sort: Name</option>
+          <option value="price-asc">Sort: Price ↑</option>
+          <option value="price-desc">Sort: Price ↓</option>
+        </select>
+      </div>
+    </section>
+
+    <section id="grid" class="grid"></section>
+
+    <footer class="footer">© IRG Kitchen • AR Dining Experience</footer>
+  </main>
+
+<script>
+const isiOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+async function load() {
+  const items = await (await fetch('items.json')).json();
+  const grid = document.getElementById('grid');
+  const q = document.getElementById('q'); const cat = document.getElementById('cat'); const sort = document.getElementById('sort');
+
+  // categories
+  [...new Set(items.map(i=>i.category))].forEach(c=>{
+    const o=document.createElement('option');o.value=c;o.textContent=c;cat.appendChild(o);
+  });
+
+  function parsePrice(p){return parseFloat(String(p).replace(/[^0-9.]/g,''))||0;}
+
+  function render() {
+    const term=q.value.toLowerCase(); const category=cat.value;
+    let list=items.filter(i => (!category || i.category===category) && i.name.toLowerCase().includes(term));
+    if (sort.value==='name') list.sort((a,b)=>a.name.localeCompare(b.name));
+    if (sort.value==='price-asc') list.sort((a,b)=>parsePrice(a.price)-parsePrice(b.price));
+    if (sort.value==='price-desc') list.sort((a,b)=>parsePrice(b.price)-parsePrice(a.price));
+
+    grid.innerHTML='';
+    list.forEach(item=>{
+      const el=document.createElement('article'); el.className='card';
+      el.innerHTML=`
+        <img class="thumb" src="${item.image}" alt="${item.name}" loading="lazy">
+        <div class="meta">
+          <div class="row">
+            <h3>${item.name}</h3>
+            <div class="price">${item.price}</div>
+          </div>
+          <div class="row"><span class="badge">${item.category}</span></div>
+        </div>
+        <div class="cta">
+          <a class="btn" href="viewer.html?id=${encodeURIComponent(item.id)}">3D View</a>
+          ${isiOS 
+            ? `<a class="btn primary" rel="ar" href="${item.usdz}">Place in AR</a>`
+            : `<a class="btn primary" href="ar.html?id=${encodeURIComponent(item.id)}">Place in AR</a>`}
+        </div>`;
+      grid.appendChild(el);
+    });
+  }
+  q.addEventListener('input',render); cat.addEventListener('change',render); sort.addEventListener('change',render);
+  render();
+}
+load();
+</script>
+</body>
+</html>

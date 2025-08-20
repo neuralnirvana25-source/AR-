@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Dish • 360° Viewer</title>
+  <link rel="stylesheet" href="styles.css"/>
+  <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+</head>
+<body>
+  <header class="header">
+    <div class="brand"><div class="logo"></div><div class="title">3D Viewer</div></div>
+    <a class="badge" href="index.html">Back</a>
+  </header>
+  <main class="wrap">
+    <model-viewer id="mv" class="mv" src="" ios-src="" alt="Dish"
+      ar ar-modes="webxr scene-viewer quick-look"
+      camera-controls auto-rotate shadow-intensity="0.9" exposure="1.1"></model-viewer>
+    <div class="toolbar-small">
+      <button class="btn" onclick="mv.resetTurntable()">Reset</button>
+      <button class="btn" onclick="mv.autoRotate=!mv.autoRotate">Auto-Rotate</button>
+    </div>
+    <p class="notice">Tip: On mobile, tap <strong>AR</strong> to try native placement (Scene Viewer on Android, Quick Look on iOS).</p>
+  </main>
+<script>
+(async function(){
+  const params=new URLSearchParams(location.search);
+  const id=params.get('id');
+  const items=await (await fetch('items.json')).json();
+  const item=items.find(x=>x.id===id)||items[0];
+  const mv=document.getElementById('mv');
+  mv.src=item.glb; if(item.usdz) mv.setAttribute('ios-src', item.usdz);
+  document.title=item.name+" • 3D Viewer";
+})();
+</script>
+</body>
+</html>

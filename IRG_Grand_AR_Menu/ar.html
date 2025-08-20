@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+  <title>Place in AR</title>
+  <link rel="stylesheet" href="styles.css"/>
+  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+  <script src="https://unpkg.com/three@0.160.0/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="https://unpkg.com/three@0.160.0/examples/jsm/webxr/ARButton.js"></script>
+</head>
+<body style="margin:0;overflow:hidden">
+<div id="arHud">
+  <div class="hudTop">
+    <a class="hudBtn" href="index.html">← Menu</a>
+    <div class="badge">Move phone to find a surface</div>
+  </div>
+  <div class="hudBottom">
+    <button class="hudBtn" id="rotateL">⟲</button>
+    <button class="hudBtn primary" id="place">Tap to Place</button>
+    <button class="hudBtn" id="rotateR">⟳</button>
+    <button class="hudBtn" id="bigger">＋</button>
+    <button class="hudBtn" id="smaller">－</button>
+  </div>
+</div>
+<div class="reticle" id="reticle"></div>
+<canvas id="c"></canvas>
+<script type="module">
+import { ARButton } from 'https://unpkg.com/three@0.160.0/examples/jsm/webxr/ARButton.js';
+
+const params=new URLSearchParams(location.search);
+const id=params.get('id');
+const items=await (await fetch('items.json')).json();
+const item=items.find(x=>x.id===id)||items[0];
+
+// iOS fallback: redirect to Quick Look if WebXR unsupported
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+if (isIOS && !navigator.xr) {
+  location.href = item.usdz;
+}
+
+let model=null, reticle, hitTestSource=null, localSpace=null;
+
+const renderer = new THREE.WebGLRenderer({canvas: document.getElementById('c'), antialias:true, alpha:true});
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.xr.enabled = true;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera();
+const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2);
+scene.add(hemi);
+const dir = new THREE.DirectionalLight(0xffffff, 0.8); dir.position.set(1,2,1); scene.add(dir);
+
+const gltfLoader = new THREE.GLTFLoader();
+gltfLoader.load(item.glb, (gltf)=>{
+  model = gltf.scene;
+  model.scale.setScalar(0.6);
+  model.visible = false;
+  scene.add(model);
+});
+
+const retGeo = new THREE.RingGeometry(0.12, 0.15, 32).rotateX(-Math.PI/2);
+const retMat = new THREE.MeshBasicMaterial({color:0xd4af37, side:THREE.DoubleSide});
+reticle = new THREE.Mesh(retGeo, retMat);
+reticle.matrixAutoUpdate = false;
+reticle.visible = false;
+scene.add(reticle);
+
+function onResize(){ renderer.setSize(window.innerWidth, window.innerHeight); }
+window.addEventListener('resize', onResize);
+
+// UI
+document.getElementById('place').addEventListener('click', ()=>{
+  if (reticle.visible && model) {
+    model.position.setFromMatrixPosition(reticle.matrix);
+    model.visible = true;
+  }
+});
+document.getElementById('rotateL').addEventListener('click', ()=>{ if(model) model.rotation.y -= 0.1; });
+document.getElementById('rotateR').addEventListener('click', ()=>{ if(model) model.rotation.y += 0.1; });
+document.getElementById('bigger').addEventListener('click', ()=>{ if(model) model.scale.multiplyScalar(1.05); });
+document.getElementById('smaller').addEventListener('click', ()=>{ if(model) model.scale.multiplyScalar(0.95); });
+
+// AR session & hit-test
+document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
+
+const session = await navigator.xr?.requestSession('immersive-ar', { requiredFeatures: ['hit-test','local-floor'] }).catch(()=>null);
+if (!session) {
+  location.href = `viewer.html?id=${encodeURIComponent(item.id)}`;
+}
+renderer.xr.setSession(session);
+
+const refSpace = await session.requestReferenceSpace('local');
+const viewerSpace = await session.requestReferenceSpace('viewer');
+const hitTestSource = await session.requestHitTestSource({ space: viewerSpace });
+
+renderer.setAnimationLoop((time, frame)=>{
+  if (frame) {
+    const pose = frame.getViewerPose(refSpace);
+    const hits = frame.getHitTestResults(hitTestSource);
+    if (hits.length) {
+      const hit = hits[0];
+      const hitPose = hit.getPose(refSpace);
+      reticle.visible = true;
+      reticle.matrix.fromArray(hitPose.transform.matrix);
+    } else {
+      reticle.visible = false;
+    }
+  }
+  renderer.render(scene, camera);
+});
+</script>
+</body>
+</html>

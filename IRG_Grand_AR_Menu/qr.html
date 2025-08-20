@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>QR Generator • IRG AR Menu</title>
+<link rel="stylesheet" href="styles.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+<header class="header">
+  <div class="brand"><div class="logo"></div><div class="title">QR Generator</div></div>
+  <a class="badge" href="index.html">Back</a>
+</header>
+<main class="container">
+  <div class="hero">
+    <h1>Create QR for your menu</h1>
+    <p class="notice">Paste your hosted <code>index.html</code> URL (HTTPS) for best results on mobile.</p>
+    <input id="url" class="input" placeholder="https://yourdomain.com/menu/index.html"/>
+    <div id="qrcode" style="margin:18px auto;max-width:320px;background:#0e141b;padding:16px;border-radius:16px;border:1px solid #1c2733"></div>
+    <button class="btn primary" onclick="make()">Generate</button>
+  </div>
+</main>
+<script>
+function make(){
+  const n=document.getElementById('qrcode'); n.innerHTML='';
+  const url=document.getElementById('url').value || location.href.replace('qr.html','index.html');
+  new QRCode(n,{text:url,width:300,height:300});
+}
+</script>
+</body>
+</html>
